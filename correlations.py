@@ -111,7 +111,14 @@ vals = dict()
 for col in oli.columns:
     vals[col] = list_unique(oli, col,True)    
 
-#%%
+#%% Create numpy arrays with diminsion kc x student, with performance of that
+# student on the corresponding kc. This is done two ways
+#   - score_first  : based on first interaction with a problem
+#   - score_correct : based on number of correct/incorrect entries for a problem
+# if number of interactions with that kc < min_number_for_inclusion, score = NaN 
+#
+# we have a list of student names in an array vals['stud'][istud] = stud_name
+# this allows the inverse:  stud_map[stud_name] = istud
 stud_map = {x:i for i,x in enumerate(vals['stud'])}
 score_first = np.empty([len(kc_keep), len(stud_map)])
 score_correct = np.empty([len(kc_keep), len(stud_map)])
@@ -164,7 +171,7 @@ all_correct = score_correct.flatten()
 print('scores with sufficient attempts for correct', len([x for x in all_correct if not np.isnan(x)]))
 
 
-#%%
+#%% Attempt to see if score_first and score_correct give similar results
 plt.figure(1)
 kc_first = np.mean(score_first, 1)
 kc_corr = np.mean(score_correct,1)
@@ -174,30 +181,38 @@ tot_first = np.mean(n_first, 1)
 tot_corr = np.mean(n_corr, 1)
 plt.plot(tot_first,tot_corr,'b.')
 
-#%%
+#%% Correlations between KCs
+#  - for all pairs of kcs
+#       - find list of students that have a score for both kcs
+#       - get pearson correlation, and p value
 import scipy
 scores = score_first
 nstud = scores.shape[1]
 pearson = list()
 highly_corr = list()
 for i1,kc1 in enumerate(kc_keep):
+    # list of scores on kc1 for all students
     score_kc1 = scores[i1,:]
     for i2,kc2 in enumerate(kc_keep):
         if i1 >= i2:
             continue
+        # list of scores on kc2 for all students
         score_kc2 = scores[i2,:]
+        # find students that have a score on both kcs
         ikeep = [istud for istud in range(nstud) if 
                        (not np.isnan(score_kc1[istud])) 
                    and (not np.isnan(score_kc2[istud]))]
+        # evaluate correlation only if > 3 students have scores for both kcs
         if (len(ikeep) > 3):
             score_kc1_keep = score_kc1[ikeep]
             score_kc2_keep = score_kc2[ikeep]
             res = scipy.stats.pearsonr(score_kc1_keep, score_kc2_keep)
+            # save correlations if p value is small (this is way small!?)
             if res[1] < 1.0e-10:
                 highly_corr.append([score_kc1_keep, score_kc2_keep,res[0],res[1]])
             pearson.append((kc1,kc2,res[0],res[1]))
             
-#%%
+#%% write out kcs that are most correlated, or anticorrelated
 Rsig = [x for x in pearson if x[3] < 0.01]
 Rvals = [x[2] for x in Rsig]
 isort = np.argsort(-1.0 * np.abs(Rvals))
