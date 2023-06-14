@@ -30,7 +30,7 @@ def oli_data(dataset):
     
     if dataset not in excel_files:
         raise ValueError(str(dataset)+' not an allowed value to load_data()')
-    dataset = 'full'
+    #dataset = 'full'
     data_location = os.path.join('datasets')
     
     hdf_path = os.path.join(data_location,dataset)
